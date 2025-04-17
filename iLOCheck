@@ -1,0 +1,138 @@
+$iloIP = ""         
+$username = ""      
+$password = ""    
+
+$pair = "$username`:$password"
+$encoded = [Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($pair))
+$headers = @{ Authorization = "Basic $encoded" }
+
+Add-Type @"
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+public class TrustAllCertsPolicy : ICertificatePolicy {
+    public bool CheckValidationResult(ServicePoint srvPoint, X509Certificate certificate, WebRequest request, int certificateProblem) {
+        return true;
+    }
+}
+"@
+[System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+
+function Get-ComponentStatus {
+    param (
+        [string]$uri,
+        [string]$name
+    )
+
+    try {
+        $res = Invoke-RestMethod -Uri "https://$iloIP$uri" -Headers $headers -Method GET -UseBasicParsing
+        $status = "Unknown"
+
+        # Basic status check
+        if ($res.Status) {
+            $status = if ($res.Status.HealthRollup) {
+                $res.Status.HealthRollup
+            } elseif ($res.Status.Health) {
+                $res.Status.Health
+            } else {
+                "Unknown"
+            }
+        }
+
+        # If resource has Members, aggregate them
+        if ($res.Members) {
+            $memberStatuses = foreach ($member in $res.Members) {
+                try {
+                    $sub = Invoke-RestMethod -Uri "https://$iloIP$($member.'@odata.id')" -Headers $headers -Method GET -UseBasicParsing
+                    if ($sub.Status.HealthRollup) {
+                        $sub.Status.HealthRollup
+                    } elseif ($sub.Status.Health) {
+                        $sub.Status.Health
+                    }
+                } catch {}
+            }
+
+            if ($memberStatuses.Count -gt 0) {
+                $summary = ($memberStatuses | Group-Object | ForEach-Object { "$($_.Name): $($_.Count)" }) -join ", "
+                Write-Output ("{0,-30}: {1}" -f $name, $summary)
+            } else {
+                Write-Output ("{0,-30}: No Health Info Found" -f $name)
+            }
+
+        # Fans (array)
+        } elseif ($res.Fans) {
+            $statuses = $res.Fans | Where-Object { $_.Status.Health } | ForEach-Object { $_.Status.Health }
+            $summary = ($statuses | Group-Object | ForEach-Object { "$($_.Name): $($_.Count)" }) -join ", "
+            Write-Output ("{0,-30}: {1}" -f $name, $summary)
+
+        # Temperatures
+        } elseif ($res.Temperatures) {
+            $statuses = $res.Temperatures | Where-Object { $_.Status.Health } | ForEach-Object { $_.Status.Health }
+            $summary = ($statuses | Group-Object | ForEach-Object { "$($_.Name): $($_.Count)" }) -join ", "
+            Write-Output ("{0,-30}: {1}" -f $name, $summary)
+
+        # PowerSupplies
+        } elseif ($res.PowerSupplies) {
+            $statuses = $res.PowerSupplies | Where-Object { $_.Status.Health } | ForEach-Object { $_.Status.Health }
+            $summary = ($statuses | Group-Object | ForEach-Object { "$($_.Name): $($_.Count)" }) -join ", "
+            Write-Output ("{0,-30}: {1}" -f $name, $summary)
+
+        # Default single-object status
+        } else {
+            Write-Output ("{0,-30}: {1}" -f $name, $status)
+        }
+    } catch {
+        Write-Output ("{0,-30}: FAILED or Unreachable" -f $name)
+    }
+}
+
+function Get-FailedDrives {
+    Write-Host "`n=== Physical Drives with Issues ===`n"
+    try {
+        $storage = Invoke-RestMethod -Uri "https://$iloIP/redfish/v1/Systems/1/SmartStorage/" -Headers $headers -Method GET -UseBasicParsing
+        foreach ($controller in $storage.Members) {
+            $ctrlDetail = Invoke-RestMethod -Uri "https://$iloIP$($controller.'@odata.id')" -Headers $headers -Method GET -UseBasicParsing
+
+            foreach ($arrayCtrl in $ctrlDetail.ArrayControllers) {
+                $ctrlInfo = Invoke-RestMethod -Uri "https://$iloIP$($arrayCtrl.'@odata.id')" -Headers $headers -Method GET -UseBasicParsing
+                foreach ($drive in $ctrlInfo.PhysicalDrives) {
+                    $driveInfo = Invoke-RestMethod -Uri "https://$iloIP$($drive.'@odata.id')" -Headers $headers -Method GET -UseBasicParsing
+
+                    $status = if ($driveInfo.Status.HealthRollup) {
+                        $driveInfo.Status.HealthRollup
+                    } elseif ($driveInfo.Status.Health) {
+                        $driveInfo.Status.Health
+                    } else {
+                        "Unknown"
+                    }
+
+                    if ($status -ne "OK") {
+                        Write-Output ("Drive: {0,-20} | Model: {1,-25} | Serial: {2,-15} | Status: {3}" -f `
+                            $driveInfo.Location, $driveInfo.Model, $driveInfo.SerialNumber, $status)
+                    }
+                }
+            }
+        }
+    } catch {
+        Write-Output "Failed to retrieve drive information."
+    }
+}
+
+
+Write-Host "`n=== iLO 5 Health Summary for $iloIP (Run: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) ===`n"
+
+Get-ComponentStatus -uri "/redfish/v1/Managers/1/"                      -name "Agentless Management Service"
+Get-ComponentStatus -uri "/redfish/v1/Systems/1/"                       -name "BIOS/Hardware Health"
+Get-ComponentStatus -uri "/redfish/v1/Chassis/1/Thermal/"              -name "Fan Redundancy"
+Get-ComponentStatus -uri "/redfish/v1/Chassis/1/Thermal/"              -name "Fans"
+Get-ComponentStatus -uri "/redfish/v1/Systems/1/Memory/"               -name "Memory"
+Get-ComponentStatus -uri "/redfish/v1/Managers/1/EthernetInterfaces/"  -name "Network"
+Get-ComponentStatus -uri "/redfish/v1/Chassis/1/Power/"                -name "Power"
+Get-ComponentStatus -uri "/redfish/v1/Chassis/1/Power/"                -name "Power Supplies"
+Get-ComponentStatus -uri "/redfish/v1/Systems/1/Processors/"           -name "Processors"
+Get-ComponentStatus -uri "/redfish/v1/Chassis/1/"                      -name "Smart Storage Energy Pack"
+Get-ComponentStatus -uri "/redfish/v1/Systems/1/SmartStorage/"         -name "Storage"
+Get-ComponentStatus -uri "/redfish/v1/Chassis/1/Thermal/"              -name "Temperatures"
+
+Get-FailedDrives
+
+Write-Host "`n=== Summary complete ===`n"
