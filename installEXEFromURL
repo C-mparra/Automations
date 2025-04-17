@@ -1,13 +1,10 @@
-# === CONFIGURATION ===
 $installerUrl = "<INSERT_DIRECT_DOWNLOAD_URL_TO_EXE>"
 $downloadFolder = "C:\Temp\GenericInstaller"
 $exePath = "$downloadFolder\installer.exe"
 $exeArgs = "/quiet /norestart"  # Update based on the installer's silent options
 
-# === Minimal Logger ===
 function Log { param($msg); Write-Output "[*] $msg" }
 
-# === Download Function ===
 function Download-File {
     param (
         [string]$Url,
@@ -36,7 +33,6 @@ function Download-File {
     }
 }
 
-# === EXE Installer Function ===
 function Install-EXE {
     param (
         [string]$ExePath,
@@ -65,7 +61,6 @@ function Install-EXE {
     }
 }
 
-# === MAIN SCRIPT ===
 Log "Starting EXE installer..."
 
 if (-not (Test-Path $downloadFolder)) {
@@ -75,7 +70,6 @@ if (-not (Test-Path $downloadFolder)) {
 if (Download-File -Url $installerUrl -DestinationPath $exePath) {
     $installResult = Install-EXE -ExePath $exePath -Arguments $exeArgs
 
-    # Cleanup
     if (Test-Path $exePath) {
         Remove-Item $exePath -Force -ErrorAction SilentlyContinue
         Log "Installer file cleaned up."
