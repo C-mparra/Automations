@@ -4,7 +4,7 @@ $msiPath = "$downloadFolder\installer.msi"
 
 function Log { param($msg); Write-Output "[*] $msg" }
 
-function Download-File {
+function DownloadFile {
     param (
         [string]$Url,
         [string]$DestinationPath
