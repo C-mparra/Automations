@@ -1,0 +1,7 @@
+$target = "8.8.8.8"
+Write-Output "Pinging $target to simulate SonicWall WAN probe..."
+if (Test-Connection -ComputerName $target -Count 2 -Quiet) {
+    Write-Output "Ping succeeded. WAN likely up."
+} else {
+    Write-Output "Ping failed. Investigate WAN or route issues."
+}
