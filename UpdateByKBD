@@ -1,0 +1,40 @@
+# Requires elevated permissions (run as administrator)
+
+$KBID = "KB5007651"
+
+Write-Host "Searching for update: $KBID"
+
+# Load the Windows Update COM object
+$UpdateSession = New-Object -ComObject Microsoft.Update.Session
+$UpdateSearcher = $UpdateSession.CreateUpdateSearcher()
+
+# Search for the KB
+$SearchResult = $UpdateSearcher.Search("IsInstalled=0 AND Type='Software' AND UpdateID='' AND Title like '%$KBID%'")
+
+if ($SearchResult.Updates.Count -eq 0) {
+    Write-Host "No applicable updates found for $KBID"
+} else {
+    Write-Host "$($SearchResult.Updates.Count) update(s) found for $KBID"
+
+    $UpdatesToInstall = New-Object -ComObject Microsoft.Update.UpdateColl
+
+    foreach ($Update in $SearchResult.Updates) {
+        Write-Host "Adding update: $($Update.Title)"
+        $UpdatesToInstall.Add($Update) | Out-Null
+    }
+
+    if ($UpdatesToInstall.Count -gt 0) {
+        $Downloader = $UpdateSession.CreateUpdateDownloader()
+        $Downloader.Updates = $UpdatesToInstall
+        $Downloader.Download()
+
+        $Installer = $UpdateSession.CreateUpdateInstaller()
+        $Installer.Updates = $UpdatesToInstall
+
+        # Install the update WITHOUT forcing reboot
+        $InstallationResult = $Installer.Install()
+        
+        Write-Host "Installation Result: $($InstallationResult.ResultCode)"
+        Write-Host "Reboot Required: $($InstallationResult.RebootRequired)"
+    }
+}
