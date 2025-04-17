@@ -7,7 +7,6 @@ function checkChoco {
     $chocoExe = "$env:ProgramData\chocolatey\bin\choco.exe"
 
     if (Test-Path $chocoExe) {
-        # Chocolatey exists but might not be in the current session's PATH
         if ($env:Path -notlike "*chocolatey*") {
             $env:Path += ";$env:ProgramData\chocolatey\bin"
             Write-Output "Chocolatey was installed but not in PATH. PATH updated for session."
@@ -21,7 +20,6 @@ function checkChoco {
         Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
         Start-Sleep -Seconds 5
 
-        # Re-check and add to path if successful
         if (Test-Path $chocoExe) {
             $env:Path += ";$env:ProgramData\chocolatey\bin"
             Write-Output "Chocolatey installed and added to PATH."
@@ -46,7 +44,6 @@ function installChocoPackage {
     choco install $Name --force -y --no-progress
 }
 
-# Main execution
 checkChoco
 installChocoPackage -Name $PackageName
 Write-Output "Chocolatey package '$PackageName' installation complete."
