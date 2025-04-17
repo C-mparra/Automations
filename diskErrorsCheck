@@ -1,0 +1,76 @@
+# === CONFIGURATION ===
+$DriveLetter = "C"  # Change this to target a different drive letter, e.g., "D", "E", etc.
+
+# === Check for Admin Privileges ===
+if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+    [Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Output "WARNING: Script is not running as Administrator. CHKDSK output may be incomplete or show Access Denied."
+}
+
+# === Volume Info + CHKDSK (Read-only) ===
+Write-Output "`n==== Volume Info for Drive $DriveLetter ===="
+$volume = Get-Volume -DriveLetter $DriveLetter
+
+if ($null -eq $volume) {
+    Write-Output "Drive $DriveLetter not found."
+    return
+}
+
+try {
+    $check = cmd /c "chkdsk $DriveLetter`: 2>&1"
+    $dirtyBit = if ($check -match "Windows has checked the file system") {
+        "No"
+    } elseif ($check -match "Volume is dirty") {
+        "Yes"
+    } else {
+        "Unknown or Access Denied"
+    }
+
+    [PSCustomObject]@{
+        Drive        = $volume.DriveLetter
+        Label        = $volume.FileSystemLabel
+        FileSystem   = $volume.FileSystem
+        SizeGB       = "{0:N1}" -f ($volume.Size / 1GB)
+        FreeGB       = "{0:N1}" -f ($volume.SizeRemaining / 1GB)
+        DirtyBitSet  = $dirtyBit
+    } | Format-Table -AutoSize
+} catch {
+    Write-Output "Error checking drive $DriveLetter $_"
+}
+
+# === Physical Disk Info ===
+Write-Output "`n==== SMART Status (Physical Disk Behind Drive $DriveLetter) ===="
+try {
+    $disk = Get-Partition -DriveLetter $DriveLetter | Get-Disk
+    $physicalDisk = Get-PhysicalDisk | Where-Object { $_.FriendlyName -eq $disk.FriendlyName }
+
+    if ($null -eq $physicalDisk) {
+        Write-Output "Could not map $DriveLetter to a physical disk."
+    } else {
+        $physicalDisk | Select-Object FriendlyName, MediaType, OperationalStatus, HealthStatus, Size | Format-Table -AutoSize
+    }
+} catch {
+    Write-Output "Unable to retrieve physical disk info: $_"
+}
+
+# === SMART Predictive Failure Check ===
+Write-Output "`n==== SMART Predictive Failure Check ===="
+try {
+    Get-WmiObject -Namespace root\wmi -Class MSStorageDriver_FailurePredictStatus -ErrorAction Stop | ForEach-Object {
+        if ($_.InstanceName -match "$($disk.Number)") {
+            [PSCustomObject]@{
+                InstanceName   = $_.InstanceName
+                PredictFailure = if ($_.PredictFailure) { "Predicted Failure" } else { "OK" }
+            }
+        }
+    } | Format-Table -AutoSize
+} catch {
+    Write-Output "SMART Predictive Failure Check not supported on this system."
+}
+
+# === Recent Disk/NTFS System Events ===
+Write-Output "`n==== Recent Disk/NTFS-Related System Events for Drive $DriveLetter ===="
+Get-WinEvent -LogName System -MaxEvents 100 |
+    Where-Object { $_.Id -in 7, 51, 52, 55, 57, 129, 130, 140, 153 -and $_.Message -like "*$DriveLetter*:" } |
+    Select-Object TimeCreated, Id, LevelDisplayName, Message |
+    Format-List
