@@ -9,44 +9,28 @@ function checkChoco {
     }
 }
 
-# : Install CrystalDiskInfo if not present
-function installCrystalDiskInfo {
+function installCrystalDiskInfoFull {
     $installPath = "$env:ProgramFiles\CrystalDiskInfo"
     if (-not (Test-Path $installPath)) {
-        Write-Output "Installing CrystalDiskInfo via Chocolatey..."
-        choco install crystaldiskinfo -y --no-progress
+        Write-Output "Installing CrystalDiskInfo full version via Chocolatey..."
+        choco install crystaldiskinfo.install -y --no-progress
         Start-Sleep -Seconds 5
     } else {
-        Write-Output "CrystalDiskInfo already installed at $installPath"
-    }
-}
-
-function Get-SMARTStatus {
-    $exe = Get-ChildItem "$env:ProgramFiles\CrystalDiskInfo" -Filter "DiskInfo*.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    if (-not $exe) {
-        Write-Output "ERROR: CrystalDiskInfo executable not found after installation."
-        return
+        Write-Output "CrystalDiskInfo already installed at: $installPath"
     }
 
-    $outputPath = "$env:TEMP\CrystalDiskInfo_SmartStatus.txt"
-    Write-Output "Running CrystalDiskInfo to gather SMART status..."
-    & "$($exe.FullName)" /CopyExit $outputPath
-    Start-Sleep -Seconds 5
-
-    if (Test-Path $outputPath) {
-        Write-Output "`n=== SMART Status ==="
-        Get-Content $outputPath
-        Remove-Item $outputPath -Force -ErrorAction SilentlyContinue
+    # Confirm EXE
+    $exe = Get-ChildItem "$installPath" -Filter "DiskInfo*.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($exe) {
+        Write-Output "CrystalDiskInfo successfully installed."
+        Write-Output "Executable path: $($exe.FullName)"
     } else {
-        Write-Output "ERROR: SMART status output file not found."
+        Write-Output "WARNING: CrystalDiskInfo installed, but executable not found in expected location."
     }
 }
 
-Write-Output "Starting CrystalDiskInfo SMART diagnostic..."
-
+Write-Output "Action: Install CrystalDiskInfo"
 checkChoco
-installCrystalDiskInfo
-Get-SMARTStatus
-
-Write-Output "CrystalDiskInfo SMART check complete."
+installCrystalDiskInfoFull
+Write-Output "Script complete."
 exit 0
