@@ -1,0 +1,13 @@
+$drive = "C:"
+$maxPercent = 5
+
+$driveSize = (Get-WmiObject Win32_LogicalDisk -Filter "DeviceID='$drive'").Size
+$maxBytes = [math]::Round($driveSize * ($maxPercent / 100))
+
+$vss = Get-WmiObject -List | Where-Object { $_.Name -eq "SystemRestore" }
+$sr = [WMI] "root/default:SystemRestore"
+
+$quotaMB = [math]::Round($maxBytes / 1MB)
+$sr.Enable("$drive", $true)
+$sr.SetDiskSpaceUsage($quotaMB, "$drive")
+Write-Output "System Restore quota set to $maxPercent% ($quotaMB MB) for $drive"
