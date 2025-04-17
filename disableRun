@@ -1,0 +1,31 @@
+# Get all user profile directories from C:\Users (ignores 'Public' and SYSTEM directories)
+$userProfiles = Get-ChildItem "C:\Users" | Where-Object { $_.PSIsContainer -and $_.Name -notmatch "Public|All Users|Default" }
+
+# Define the registry subpath and value name
+$regSubPath = "Software\Microsoft\Windows\CurrentVersion\Policies\Explorer"
+$valueName = "NoRun"
+
+# Loop through each user profile and modify the registry
+foreach ($profile in $userProfiles) {
+    # Get the SID for each user profile
+    $userSID = (Get-WmiObject -Class Win32_UserAccount -Filter "Name='$($profile.Name)'" ).SID
+    $regPath = "HKU\$userSID\$regSubPath"
+
+    # Ensure the Policies and Explorer keys exist for this user
+    if (-not (Test-Path "HKU\$userSID\Software\Microsoft\Windows\CurrentVersion\Policies")) {
+        New-Item -Path "HKU\$userSID\Software\Microsoft\Windows\CurrentVersion\Policies" -Force
+    }
+
+    if (-not (Test-Path "$regPath")) {
+        New-Item -Path "$regPath" -Force
+    }
+
+    # Set the NoRun registry value to disable "Run" (NoRun = 1)
+    reg add "HKU\$userSID\$regSubPath" /v $valueName /t REG_DWORD /d 1 /f
+    Write-Host "Run command disabled for user: $($profile.Name)"
+}
+
+# Restart Explorer to apply changes for all users
+Stop-Process -Name explorer -Force
+Start-Process explorer
+Write-Host "Explorer restarted to apply changes."
