@@ -1,7 +1,7 @@
 $installerUrl = "<INSERT_DIRECT_DOWNLOAD_URL_TO_EXE>"
 $downloadFolder = "C:\Temp\GenericInstaller"
 $exePath = "$downloadFolder\installer.exe"
-$exeArgs = "/quiet /norestart"  # Update based on the installer's silent options
+$exeArgs = "/quiet /norestart"  
 
 function Log { param($msg); Write-Output "[*] $msg" }
 
