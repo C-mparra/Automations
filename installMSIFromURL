@@ -64,7 +64,7 @@ if (-not (Test-Path $downloadFolder)) {
     New-Item -Path $downloadFolder -ItemType Directory -Force | Out-Null
 }
 
-if (Download-File -Url $installerUrl -DestinationPath $msiPath) {
+if (DownloadFile -Url $installerUrl -DestinationPath $msiPath) {
     if (Install-MSI -MsiPath $msiPath) {
         Log "All done."
     } else {
