@@ -1,0 +1,75 @@
+$installerUrl = "<INSERT_DIRECT_DOWNLOAD_URL_TO_MSI>"
+$downloadFolder = "C:\Temp\GenericInstaller"
+$msiPath = "$downloadFolder\installer.msi"
+
+function Log { param($msg); Write-Output "[*] $msg" }
+
+function Download-File {
+    param (
+        [string]$Url,
+        [string]$DestinationPath
+    )
+
+    try {
+        Invoke-WebRequest -Uri $Url -OutFile $DestinationPath -UseBasicParsing -MaximumRedirection 10
+        if (-Not (Test-Path $DestinationPath)) {
+            Log "Download failed."
+            return $false
+        }
+
+        # Quick check: make sure it's not HTML
+        if ((Get-Content $DestinationPath -First 1) -like "*<html*") {
+            Log "Downloaded file appears to be HTML. Removing."
+            Remove-Item $DestinationPath -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+
+        Log "Download successful."
+        return $true
+    } catch {
+        Log "Download error."
+        return $false
+    }
+}
+
+function Install-MSI {
+    param (
+        [string]$MsiPath,
+        [switch]$Quiet = $true
+    )
+
+    if (-not (Test-Path $MsiPath)) {
+        Log "MSI not found."
+        return $false
+    }
+
+    $args = "/i `"$MsiPath`" /norestart"
+    if ($Quiet) { $args += " /quiet" }
+
+    $proc = Start-Process -FilePath "msiexec.exe" -ArgumentList $args -Wait -PassThru
+    $code = $proc.ExitCode
+
+    switch ($code) {
+        0      { Log "Install successful."; return $true }
+        3010   { Log "Install successful. Reboot required."; return $true }
+        1603   { Log "Install failed (1603)."; return $false }
+        1618   { Log "Install failed (1618 - install in progress)."; return $false }
+        default { Log "Install failed (Code: $code)."; return $false }
+    }
+}
+
+Log "Starting install script..."
+
+if (-not (Test-Path $downloadFolder)) {
+    New-Item -Path $downloadFolder -ItemType Directory -Force | Out-Null
+}
+
+if (Download-File -Url $installerUrl -DestinationPath $msiPath) {
+    if (Install-MSI -MsiPath $msiPath) {
+        Log "All done."
+    } else {
+        Log "Installer failed."
+    }
+} else {
+    Log "Download failed."
+}
