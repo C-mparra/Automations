@@ -1,0 +1,91 @@
+# === CONFIGURATION ===
+$installerUrl = "<INSERT_DIRECT_DOWNLOAD_URL_TO_EXE>"
+$downloadFolder = "C:\Temp\GenericInstaller"
+$exePath = "$downloadFolder\installer.exe"
+$exeArgs = "/quiet /norestart"  # Update based on the installer's silent options
+
+# === Minimal Logger ===
+function Log { param($msg); Write-Output "[*] $msg" }
+
+# === Download Function ===
+function Download-File {
+    param (
+        [string]$Url,
+        [string]$DestinationPath
+    )
+
+    try {
+        Invoke-WebRequest -Uri $Url -OutFile $DestinationPath -UseBasicParsing -MaximumRedirection 10
+        if (-not (Test-Path $DestinationPath)) {
+            Log "Download failed."
+            return $false
+        }
+
+        # Sanity check: ensure it's not an HTML redirect page
+        if ((Get-Content $DestinationPath -First 1) -like "*<html*") {
+            Log "Downloaded file is HTML. Deleting."
+            Remove-Item $DestinationPath -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+
+        Log "Download complete."
+        return $true
+    } catch {
+        Log "Error during download."
+        return $false
+    }
+}
+
+# === EXE Installer Function ===
+function Install-EXE {
+    param (
+        [string]$ExePath,
+        [string]$Arguments
+    )
+
+    if (-not (Test-Path $ExePath)) {
+        Log "Installer file not found."
+        return $false
+    }
+
+    try {
+        $proc = Start-Process -FilePath $ExePath -ArgumentList $Arguments -Wait -PassThru
+        $code = $proc.ExitCode
+
+        if ($code -eq 0) {
+            Log "Installer finished successfully."
+            return $true
+        } else {
+            Log "Installer failed. Exit code: $code"
+            return $false
+        }
+    } catch {
+        Log "Error running installer."
+        return $false
+    }
+}
+
+# === MAIN SCRIPT ===
+Log "Starting EXE installer..."
+
+if (-not (Test-Path $downloadFolder)) {
+    New-Item -Path $downloadFolder -ItemType Directory -Force | Out-Null
+}
+
+if (Download-File -Url $installerUrl -DestinationPath $exePath) {
+    $installResult = Install-EXE -ExePath $exePath -Arguments $exeArgs
+
+    # Cleanup
+    if (Test-Path $exePath) {
+        Remove-Item $exePath -Force -ErrorAction SilentlyContinue
+        Log "Installer file cleaned up."
+    }
+
+    if ($installResult) {
+        Log "Install complete."
+    } else {
+        Log "Installation failed."
+    }
+} else {
+    Log "Download failed."
+}
