@@ -1,0 +1,68 @@
+function Write-Log {
+    param ($Message)
+    $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Output "$Timestamp - $Message"
+}
+
+function Test-HyperVAvailable {
+    if (-not (Get-Command Get-VM -ErrorAction SilentlyContinue)) {
+        Write-Log "Error: Hyper-V PowerShell module not found. Is this a Hyper-V host?"
+        return $false
+    }
+    return $true
+}
+
+function Get-AllVMs {
+    try {
+        $VMs = Get-VM | Select-Object VMName, AutomaticStartAction, State
+        Write-Log "Retrieved VM list successfully."
+        return $VMs
+    } catch {
+        Write-Log "Error: Failed to retrieve VMs. $_"
+        return $null
+    }
+}
+
+function Set-VMsAutoStart {
+    param ([array]$VMList)
+
+    foreach ($VM in $VMList) {
+        Write-Log "Checking VM: $($VM.VMName)"
+
+        if ($VM.AutomaticStartAction -ne "Start") {
+            Write-Log "$($VM.VMName) is not set to auto start."
+
+            if ($VM.State -eq "Running") {
+                Write-Log "$($VM.VMName) is running. Updating Auto Start setting..."
+
+                try {
+                    Set-VM -VMName $VM.VMName -AutomaticStartAction Start
+                    Write-Log "$($VM.VMName) Auto Start setting updated successfully."
+                } catch {
+                    Write-Log "Error: Failed to update Auto Start for $($VM.VMName). $_"
+                }
+            }
+        } else {
+            Write-Log "$($VM.VMName) is already set to Auto Start. No changes needed."
+        }
+    }
+}
+
+function Start-HyperVAutoStartConfig {
+    Write-Log "Starting Hyper-V Auto Start Configuration..."
+
+    if (-not (Test-HyperVAvailable)) {
+        return
+    }
+
+    $vms = Get-AllVMs
+    if ($null -eq $vms) {
+        return
+    }
+
+    Set-VMsAutoStart -VMList $vms
+
+    Write-Log "Hyper-V Auto Start Configuration Completed."
+}
+
+Start-HyperVAutoStartConfig
