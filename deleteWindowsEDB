@@ -1,0 +1,44 @@
+Write-Output "Stopping Windows Search service..."
+Stop-Service -Name "WSearch" -Force -ErrorAction SilentlyContinue
+
+$edbPath = "C:\ProgramData\Microsoft\Search\Data\Applications\Windows\Windows.edb"
+if (Test-Path $edbPath) {
+    try {
+        Remove-Item -Path $edbPath -Force
+        Write-Output "Windows.edb deleted successfully."
+    } catch {
+        Write-Output "Failed to delete Windows.edb: $_"
+    }
+} else {
+    Write-Output "Windows.edb not found."
+}
+
+$regPath = "HKLM:\SOFTWARE\Microsoft\Windows Search"
+try {
+    Set-ItemProperty -Path $regPath -Name "SetupCompletedSuccessfully" -Value 0 -Force
+    Write-Output "Search index rebuild triggered via registry."
+} catch {
+    Write-Output "Failed to update registry to trigger index rebuild: $_"
+}
+
+Write-Output "Starting Windows Search service..."
+Start-Service -Name "WSearch" -ErrorAction SilentlyContinue
+
+$drive = Get-WmiObject Win32_LogicalDisk -Filter "DeviceID='C:'"
+$freeGB = [math]::Round($drive.FreeSpace / 1GB, 2)
+$totalGB = [math]::Round($drive.Size / 1GB, 2)
+$percentFree = [math]::Round(($drive.FreeSpace / $drive.Size) * 100, 2)
+
+Write-Output ""
+Write-Output "Disk Space After Cleanup:"
+Write-Output "  Free Space: $freeGB GB"
+Write-Output "  Total Size: $totalGB GB"
+Write-Output "  Free Percentage: $percentFree %"
+
+if ($percentFree -lt 15) {
+    Write-Output "WARNING: Free space is still below 15%. Additional cleanup may be needed."
+    exit 1
+} else {
+    Write-Output "Cleanup successful. Free space is above threshold."
+    exit 0
+}
