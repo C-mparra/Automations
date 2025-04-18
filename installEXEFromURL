@@ -5,7 +5,7 @@ $exeArgs = "/quiet /norestart"
 
 function Log { param($msg); Write-Output "[*] $msg" }
 
-function Download-File {
+function downloadFile {
     param (
         [string]$Url,
         [string]$DestinationPath
@@ -67,7 +67,7 @@ if (-not (Test-Path $downloadFolder)) {
     New-Item -Path $downloadFolder -ItemType Directory -Force | Out-Null
 }
 
-if (Download-File -Url $installerUrl -DestinationPath $exePath) {
+if (downloadFile -Url $installerUrl -DestinationPath $exePath) {
     $installResult = Install-EXE -ExePath $exePath -Arguments $exeArgs
 
     if (Test-Path $exePath) {
