@@ -1,6 +1,6 @@
 $iloIP = ""         
 $username = ""      
-$password = ""    
+$password = ""     
 
 $pair = "$username`:$password"
 $encoded = [Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($pair))
@@ -17,6 +17,24 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
 "@
 [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
 
+function Write-HealthStatus {
+    param (
+        [string]$label,
+        [string]$value
+    )
+
+    $color = switch -Regex ($value) {
+        'OK' { 'Green' }
+        'Warning' { 'Yellow' }
+        'Critical' { 'Red' }
+        'FAILED|Unreachable' { 'Red' }
+        'Unknown' { 'DarkGray' }
+        default { 'White' }
+    }
+
+    Write-Host ("{0,-30}: {1}" -f $label, $value) -ForegroundColor $color
+}
+
 function Get-ComponentStatus {
     param (
         [string]$uri,
@@ -27,7 +45,6 @@ function Get-ComponentStatus {
         $res = Invoke-RestMethod -Uri "https://$iloIP$uri" -Headers $headers -Method GET -UseBasicParsing
         $status = "Unknown"
 
-        # Basic status check
         if ($res.Status) {
             $status = if ($res.Status.HealthRollup) {
                 $res.Status.HealthRollup
@@ -38,7 +55,6 @@ function Get-ComponentStatus {
             }
         }
 
-        # If resource has Members, aggregate them
         if ($res.Members) {
             $memberStatuses = foreach ($member in $res.Members) {
                 try {
@@ -53,35 +69,41 @@ function Get-ComponentStatus {
 
             if ($memberStatuses.Count -gt 0) {
                 $summary = ($memberStatuses | Group-Object | ForEach-Object { "$($_.Name): $($_.Count)" }) -join ", "
-                Write-Output ("{0,-30}: {1}" -f $name, $summary)
+                Write-HealthStatus $name $summary
             } else {
-                Write-Output ("{0,-30}: No Health Info Found" -f $name)
+                Write-HealthStatus $name "No Health Info Found"
             }
 
-        # Fans (array)
+        } elseif ($res.Redundancy) {
+            $statuses = @()
+            foreach ($r in $res.Redundancy) {
+                $rStatus = $r.Status.Health
+                $mode = $r.Mode
+                $statuses += "Redundancy - $rStatus (Mode: $mode)"
+            }
+            $redundancySummary = ($statuses -join ", ")
+            Write-HealthStatus $name $redundancySummary
+
         } elseif ($res.Fans) {
             $statuses = $res.Fans | Where-Object { $_.Status.Health } | ForEach-Object { $_.Status.Health }
             $summary = ($statuses | Group-Object | ForEach-Object { "$($_.Name): $($_.Count)" }) -join ", "
-            Write-Output ("{0,-30}: {1}" -f $name, $summary)
+            Write-HealthStatus $name $summary
 
-        # Temperatures
         } elseif ($res.Temperatures) {
             $statuses = $res.Temperatures | Where-Object { $_.Status.Health } | ForEach-Object { $_.Status.Health }
             $summary = ($statuses | Group-Object | ForEach-Object { "$($_.Name): $($_.Count)" }) -join ", "
-            Write-Output ("{0,-30}: {1}" -f $name, $summary)
+            Write-HealthStatus $name $summary
 
-        # PowerSupplies
         } elseif ($res.PowerSupplies) {
             $statuses = $res.PowerSupplies | Where-Object { $_.Status.Health } | ForEach-Object { $_.Status.Health }
             $summary = ($statuses | Group-Object | ForEach-Object { "$($_.Name): $($_.Count)" }) -join ", "
-            Write-Output ("{0,-30}: {1}" -f $name, $summary)
+            Write-HealthStatus $name $summary
 
-        # Default single-object status
         } else {
-            Write-Output ("{0,-30}: {1}" -f $name, $status)
+            Write-HealthStatus $name $status
         }
     } catch {
-        Write-Output ("{0,-30}: FAILED or Unreachable" -f $name)
+        Write-HealthStatus $name "FAILED or Unreachable"
     }
 }
 
@@ -106,14 +128,20 @@ function Get-FailedDrives {
                     }
 
                     if ($status -ne "OK") {
-                        Write-Output ("Drive: {0,-20} | Model: {1,-25} | Serial: {2,-15} | Status: {3}" -f `
-                            $driveInfo.Location, $driveInfo.Model, $driveInfo.SerialNumber, $status)
+                        $color = switch ($status) {
+                            "Warning" { "Yellow" }
+                            "Critical" { "Red" }
+                            default { "White" }
+                        }
+
+                        Write-Host ("Drive: {0,-20} | Model: {1,-25} | Serial: {2,-15} | Status: {3}" -f `
+                            $driveInfo.Location, $driveInfo.Model, $driveInfo.SerialNumber, $status) -ForegroundColor $color
                     }
                 }
             }
         }
     } catch {
-        Write-Output "Failed to retrieve drive information."
+        Write-Host "Failed to retrieve drive information." -ForegroundColor Red
     }
 }
 

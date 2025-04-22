@@ -1,5 +1,5 @@
 param(
-    [string]$svc = ''
+    [string]$svc = 'W3SVC'
 )
 
 function Get-ExitCodeExplanation {
@@ -107,7 +107,6 @@ if ($mainStatus.Status -eq 'Running') {
 }
 
 Start-ServiceWithDependencies -serviceName $svc
-exit
 
 Write-Output "`nRecent related system event logs:"
 Get-WinEvent -LogName System -MaxEvents 50 |
