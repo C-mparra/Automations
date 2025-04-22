@@ -1,6 +1,5 @@
 $backupZipUrl = ""
 $workingDir = "C:\Temp\RMM\CrystalDisk"
-$outputFile = "$workingDir\CrystalDiskInfo_SmartStatus.txt"
 
 function checkChoco {
     $chocoExe = "$env:ProgramData\chocolatey\bin\choco.exe"

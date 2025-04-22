@@ -90,7 +90,11 @@ function Start-ServiceWithDependencies {
     }
 }
 
-# === MAIN ===
+if ([string]::IsNullOrWhiteSpace($svc)) {
+    Write-Warning "No service name provided. Use the -svc parameter."
+    return
+}
+
 $mainStatus = Get-Service -Name $svc -ErrorAction SilentlyContinue
 if ($null -eq $mainStatus) {
     Write-Warning "Service '$svc' not found."
@@ -98,13 +102,13 @@ if ($null -eq $mainStatus) {
 }
 
 if ($mainStatus.Status -eq 'Running') {
-    Write-Output "Service '$svc' is already running. Skipping."
+    Write-Output "Service '$svc' is already running. Exiting."
     return
 }
 
 Start-ServiceWithDependencies -serviceName $svc
+exit
 
-# === Event Logs related to the service ===
 Write-Output "`nRecent related system event logs:"
 Get-WinEvent -LogName System -MaxEvents 50 |
     Where-Object { $_.Message -like "*$svc*" } |
