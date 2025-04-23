@@ -145,6 +145,34 @@ function Get-FailedDrives {
     }
 }
 
+# === Start Asynchronous Memory Check ===
+$memoryJob = Start-Job -ScriptBlock {
+    param($iloIP, $headers)
+
+    function Get-ComponentStatus {
+        param ([string]$uri, [string]$name, $headers, $iloIP)
+
+        try {
+            $res = Invoke-RestMethod -Uri "https://$iloIP$uri" -Headers $headers -Method GET -UseBasicParsing
+            $status = "Unknown"
+            if ($res.Status) {
+                $status = if ($res.Status.HealthRollup) {
+                    $res.Status.HealthRollup
+                } elseif ($res.Status.Health) {
+                    $res.Status.Health
+                } else {
+                    "Unknown"
+                }
+            }
+
+            Write-Host ("{0,-30}: {1}" -f $name, $status) -ForegroundColor (if ($status -eq 'OK') {'Green'} else {'Red'})
+        } catch {
+            Write-Host "$name FAILED or Unreachable" -ForegroundColor Red
+        }
+    }
+
+    Get-ComponentStatus -uri "/redfish/v1/Systems/1/Memory/" -name "Memory" -headers $using:headers -iloIP $using:iloIP
+} -ArgumentList $iloIP, $headers
 
 Write-Host "`n=== iLO 5 Health Summary for $iloIP (Run: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) ===`n"
 
@@ -152,7 +180,6 @@ Get-ComponentStatus -uri "/redfish/v1/Managers/1/"                      -name "A
 Get-ComponentStatus -uri "/redfish/v1/Systems/1/"                       -name "BIOS/Hardware Health"
 Get-ComponentStatus -uri "/redfish/v1/Chassis/1/Thermal/"              -name "Fan Redundancy"
 Get-ComponentStatus -uri "/redfish/v1/Chassis/1/Thermal/"              -name "Fans"
-Get-ComponentStatus -uri "/redfish/v1/Systems/1/Memory/"               -name "Memory"
 Get-ComponentStatus -uri "/redfish/v1/Managers/1/EthernetInterfaces/"  -name "Network"
 Get-ComponentStatus -uri "/redfish/v1/Chassis/1/Power/"                -name "Power"
 Get-ComponentStatus -uri "/redfish/v1/Chassis/1/Power/"                -name "Power Supplies"
@@ -162,5 +189,24 @@ Get-ComponentStatus -uri "/redfish/v1/Systems/1/SmartStorage/"         -name "St
 Get-ComponentStatus -uri "/redfish/v1/Chassis/1/Thermal/"              -name "Temperatures"
 
 Get-FailedDrives
+
+# === Wait for Memory Check (up to 60 sec) ===
+$timeout = 60
+$elapsed = 0
+$interval = 2
+
+while (-not $memoryJob.HasExited -and $elapsed -lt $timeout) {
+    Start-Sleep -Seconds $interval
+    $elapsed += $interval
+}
+
+if ($memoryJob.State -eq 'Completed') {
+    Write-Host "`n=== Memory Health Summary ===`n"
+    Receive-Job $memoryJob
+} else {
+    Write-Host "`nMemory check did not complete in time (>$timeout sec). Skipping..." -ForegroundColor Yellow
+    Stop-Job $memoryJob | Out-Null
+    Remove-Job $memoryJob | Out-Null
+}
 
 Write-Host "`n=== Summary complete ===`n"
