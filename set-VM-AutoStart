@@ -1,0 +1,52 @@
+function Get-RunningVMs {
+    try {
+        $vms = Get-VM | Where-Object { $_.State -eq 'Running' }
+        return $vms
+    }
+    catch {
+        Write-Error "Failed to retrieve VMs: $_"
+        throw
+    }
+}
+
+function Set-VMsToAutoStart ($vms) {
+    $updated = 0
+    foreach ($vm in $vms) {
+        Write-Host "Checking VM: $($vm.VMName)"
+
+        if ($vm.AutomaticStartAction -ne 'Start') {
+            Write-Host "VM '$($vm.VMName)' is not set to auto start. Updating..."
+            try {
+                Set-VM -VMName $vm.VMName -AutomaticStartAction Start
+                $updated++
+            }
+            catch {
+                Write-Warning "Failed to update VM '$($vm.VMName)': $_"
+            }
+        }
+        else {
+            Write-Host "VM '$($vm.VMName)' is already set to auto start."
+        }
+    }
+    return $updated
+}
+
+function Main {
+    try {
+        $runningVMs = Get-RunningVMs
+        if (-not $runningVMs) {
+            Write-Host "No running VMs found. Nothing to update."
+            exit 0
+        }
+
+        $updatedCount = Set-VMsToAutoStart -vms $runningVMs
+        Write-Host "Auto-start setting updated for $updatedCount VM(s)."
+        exit 0
+    }
+    catch {
+        Write-Error "Script failed: $_"
+        exit 1
+    }
+}
+
+Main
