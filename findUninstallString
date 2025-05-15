@@ -1,0 +1,1 @@
+Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" | Where-Object { $_.DisplayName -like "**" } | Select-Object DisplayName, UninstallString

@@ -1,0 +1,17 @@
+$installerUrl = "https://go.microsoft.com/fwlink/?linkid=2088631"
+$downloadFolder = "C:\Temp\Rmm\Windows"
+$exePath = "$downloadFolder\ndp48.exe"
+$exeArgs = "/quiet /norestart"
+
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+if (-not (Test-Path $downloadFolder)) {
+    New-Item -Path $downloadFolder -ItemType Directory -Force | Out-Null
+}
+
+Invoke-WebRequest -Uri $installerUrl -OutFile $exePath -UseBasicParsing
+
+if (Test-Path $exePath -and (Get-Content $exePath -First 1 -ErrorAction SilentlyContinue) -notlike "*<html*") {
+    Start-Process -FilePath $exePath -ArgumentList $exeArgs -Wait
+    Remove-Item $exePath -Force -ErrorAction SilentlyContinue
+}
