@@ -1,7 +1,7 @@
 # Replace with your credentials
-$sonicIP = "https://192.168.1.1:8443"
-$username = "NMS-User"
-$password = '"6X5QZ]5un|%K5*~'
+$sonicIP = ""
+$username = ""
+$password = ''
 
 # Ignore SSL errors (if using self-signed cert)
 add-type @"
@@ -18,7 +18,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
 [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
 
 # Prepare auth headers
-$authInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$username:$password"))
+$authInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$username : $password"))
 $headers = @{
     "Authorization" = "Basic $authInfo"
     "Content-Type" = "application/json"
