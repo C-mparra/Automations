@@ -1,0 +1,23 @@
+Set-ExecutionPolicy RemoteSigned -Scope Process -Force
+Import-Module PSWindowsUpdate -Force
+Get-WindowsUpdate -MicrosoftUpdate -IsInstalled:$false
+
+function Get-KBSizeMB {
+    param (
+        [string]$KBID
+    )
+    try {
+        $availableUpdates = Get-WindowsUpdate -MicrosoftUpdate -IsInstalled:$false -Verbose:$false
+        $update = $availableUpdates | Where-Object { $_.KBArticleIDs -contains $KBID }
+        if ($update) {
+            return [math]::Round(($update.Size / 1MB), 2)
+        } else {
+            return $null
+        }
+    } catch {
+        Write-Output "Failed to get size for ${KBID}: $_"
+        return $null
+    }
+}
+
+Get-KBSizeMB
