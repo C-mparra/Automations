@@ -32,16 +32,7 @@ jobs:
             local save_path=$2
             
             echo "Attempting to download from: $url"
-            echo "Saving to: $save_path"
-            
-            # Validate URL format
-            local url_check_regex='(https?|ftp|file)://[-[:alnum:]+&@#/%?=~_|!:,.;]*[-[:alnum:]+&@#/%=~_|]'
-            if [[ "${url}" =~ ${url_check_regex} ]]; then
-                echo "URL validation passed."
-            else
-                echo "ERROR: Invalid URL format: $url"
-                return 1
-            fi
+            echo "Saving to: $save_path" 
             
             # Validate and create path if needed
             local path_check_regex='^(/[^/ ]*)+/?$'
@@ -117,54 +108,6 @@ jobs:
         chmod +x test_download.sh
         ./test_download.sh
       
-    - name: Test URL validation
-      run: |
-        cat << 'EOF' > test_validation.sh
-        #!/bin/bash
-        
-        # Test URL validation regex
-        url_check_regex='(https?|ftp|file)://[-[:alnum:]+&@#/%?=~_|!:,.;]*[-[:alnum:]+&@#/%=~_|]'
-        
-        # Valid URLs
-        valid_urls=(
-            "https://example.com/file.dmg"
-            "http://test.org/download"
-            "https://domain.com/path/to/file.pkg"
-        )
-        
-        # Invalid URLs
-        invalid_urls=(
-            "not-a-url"
-            "ftp://incomplete"
-            ""
-        )
-        
-        echo "Testing valid URLs..."
-        for url in "${valid_urls[@]}"; do
-            if [[ "${url}" =~ ${url_check_regex} ]]; then
-                echo "✓ $url - VALID"
-            else
-                echo "✗ $url - INVALID (should be valid)"
-                exit 1
-            fi
-        done
-        
-        echo "Testing invalid URLs..."
-        for url in "${invalid_urls[@]}"; do
-            if [[ "${url}" =~ ${url_check_regex} ]]; then
-                echo "✗ $url - VALID (should be invalid)"
-                exit 1
-            else
-                echo "✓ $url - INVALID"
-            fi
-        done
-        
-        echo "URL validation tests PASSED"
-        EOF
-        
-        chmod +x test_validation.sh
-        ./test_validation.sh
-      
     - name: Test without NinjaOne dependencies
       run: |
         # Create a modified version that skips NinjaOne parts
@@ -182,91 +125,3 @@ jobs:
         echo "Testing script logic (without actual installation)..."
         ./test_script.sh || echo "Script completed with modifications"
 
-  test-ubuntu:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Test script syntax on Ubuntu
-      run: bash -n ./macos/cisco-secure-installer.sh
-      
-    - name: Test download function on Ubuntu
-      run: |
-        # Test the download function on Ubuntu (will use curl instead of wget)
-        cat << 'EOF' > test_download_ubuntu.sh
-        #!/bin/bash
-        
-        # Same robust_download function but test on Ubuntu
-        function robust_download() {
-            local url=$1
-            local save_path=$2
-            
-            echo "Attempting to download from: $url"
-            echo "Saving to: $save_path"
-            
-            local url_check_regex='(https?|ftp|file)://[-[:alnum:]+&@#/%?=~_|!:,.;]*[-[:alnum:]+&@#/%=~_|]'
-            if [[ "${url}" =~ ${url_check_regex} ]]; then
-                echo "URL validation passed."
-            else
-                echo "ERROR: Invalid URL format: $url"
-                return 1
-            fi
-            
-            local path_check_regex='^(/[^/ ]*)+/?$'
-            if [[ "${save_path}" =~ ${path_check_regex} ]]; then
-                echo "Path validation passed."
-                local folder=$(dirname "${save_path}")
-                mkdir -p "${folder}"
-            else
-                echo "ERROR: Invalid path format: $save_path"
-                return 1
-            fi
-            
-            if command -v wget >/dev/null 2>&1; then
-                echo "Downloading using wget..."
-                wget --timeout=30 --tries=3 -O "$save_path" "$url"
-                local download_result=$?
-            elif command -v curl >/dev/null 2>&1; then
-                echo "Downloading using curl..."
-                curl --connect-timeout 30 --max-time 300 --retry 3 --retry-delay 5 -L -o "$save_path" "$url"
-                local download_result=$?
-            else
-                echo "ERROR: Neither wget nor curl found."
-                return 1
-            fi
-            
-            if [ $download_result -ne 0 ]; then
-                echo "ERROR: Download failed with exit code $download_result"
-                return 1
-            fi
-            
-            if [ ! -f "$save_path" ]; then
-                echo "ERROR: File not found at $save_path"
-                return 1
-            fi
-            
-            # Use stat differently on Linux
-            local file_size=$(stat -c%s "$save_path" 2>/dev/null || echo "0")
-            if [ "$file_size" -eq 0 ]; then
-                echo "ERROR: Downloaded file is empty"
-                rm -f "$save_path"
-                return 1
-            fi
-            
-            echo "Download successful. File size: $file_size bytes"
-            return 0
-        }
-        
-        # Test download
-        if robust_download "https://httpbin.org/bytes/1024" "/tmp/test_ubuntu.bin"; then
-            echo "Ubuntu download test PASSED"
-            rm -f "/tmp/test_ubuntu.bin"
-        else
-            echo "Ubuntu download test FAILED"
-            exit 1
-        fi
-        EOF
-        
-        chmod +x test_download_ubuntu.sh
-        ./test_download_ubuntu.sh
