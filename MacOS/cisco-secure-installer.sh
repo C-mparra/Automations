@@ -31,19 +31,10 @@ fi
 function robust_download() {
     local url=$1
     local save_path=$2
-    
+
     echo "Attempting to download from: $url"
     echo "Saving to: $save_path"
-    
-    # Validate URL format
-    local url_check_regex='(https?|ftp|file)://[-[:alnum:]+&@#/%?=~_|!:,.;]*[-[:alnum:]+&@#/%=~_|]'
-    if [[ "${url}" =~ ${url_check_regex} ]]; then
-        echo "URL validation passed."
-    else
-        echo "ERROR: Invalid URL format: $url"
-        return 1
-    fi
-    
+
     # Validate and create path if needed
     local path_check_regex='^(/[^/ ]*)+/?$'
     if [[ "${save_path}" =~ ${path_check_regex} ]]; then
@@ -63,7 +54,7 @@ function robust_download() {
         echo "ERROR: Invalid path format: $save_path"
         return 1
     fi
-    
+
     # Try wget first, then curl
     if command -v wget >/dev/null 2>&1; then
         echo "Downloading using wget..."
@@ -77,26 +68,24 @@ function robust_download() {
         echo "ERROR: Neither wget nor curl found. Cannot download file."
         return 1
     fi
-    
-    # Check if download was successful
+
     if [ $download_result -ne 0 ]; then
         echo "ERROR: Download failed with exit code $download_result"
         return 1
     fi
-    
-    # Verify file was actually downloaded
+
     if [ ! -f "$save_path" ]; then
         echo "ERROR: Download appeared successful but file not found at $save_path"
         return 1
     fi
-    
+
     local file_size=$(stat -f%z "$save_path" 2>/dev/null || echo "0")
     if [ "$file_size" -eq 0 ]; then
         echo "ERROR: Downloaded file is empty"
         rm -f "$save_path"
         return 1
     fi
-    
+
     echo "Download successful. File size: $file_size bytes"
     return 0
 }

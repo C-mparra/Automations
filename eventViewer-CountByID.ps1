@@ -1,4 +1,4 @@
-$daysBack = 7
+$daysBack = 3
 $eventID = 7
 $logName = 'System'
 
