@@ -1,6 +1,6 @@
 $iloIP = "10.0.14.8"         
 $username = "amcadmin"      
-$password = "NyNwRiSm3zRwCKQJ"     
+$password = ""     
 
 $pair = "$username`:$password"
 $encoded = [Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($pair))
