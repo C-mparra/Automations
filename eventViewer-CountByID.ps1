@@ -1,7 +1,7 @@
-$daysBack = 1
-$eventID = 55
+$daysBack = 7
+$eventID = 7
 $logName = 'System'
-$providerName = 'Ntfs'
+$providerName = 'disk'
 
 try {
     $events = Get-WinEvent -FilterHashtable @{

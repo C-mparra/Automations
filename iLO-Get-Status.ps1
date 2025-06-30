@@ -1,5 +1,5 @@
-$iloIP = "10.0.14.8"         
-$username = "amcadmin"      
+$iloIP = ""         
+$username = ""      
 $password = ""     
 
 $pair = "$username`:$password"

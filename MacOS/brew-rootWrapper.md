@@ -1,0 +1,8 @@
+export HOME="/var/root"
+export PATH="/usr/local/bin:$PATH"
+export HOMEBREW_PREFIX="/usr/local"
+export HOMEBREW_CELLAR="/usr/local/Cellar"
+export HOMEBREW_REPOSITORY="/usr/local/Homebrew"
+export HOMEBREW_CACHE="/var/root/Library/Caches/Homebrew"
+export USER="root"
+export LOGNAME="root"
