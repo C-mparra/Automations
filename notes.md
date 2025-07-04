@@ -3,6 +3,9 @@ Import-Module PSWindowsUpdate -Force
 Get-WindowsUpdate -MicrosoftUpdate -IsInstalled:$false
 
 
+# when scripts aren't working
+ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+ 
 Get-ChildItem -Path "D:\" -Recurse -Filter "SentinelOne-win32_windows_legacy_v2_1_0_86.exe" -ErrorAction SilentlyContinue
 
 Get-Process -Name powershell | ForEach-Object { $_.Kill() }
