@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<key>PayloadContent</key>
+		<array>
+			<dict>
+				<key>PayloadType</key>
+				<string>com.apple.system.preferences.energysaver</string>
+				<key>PayloadIdentifier</key>
+				<string>com.example.mdm.profile.energysaver</string>
+				<key>PayloadDisplayName</key>
+				<string>Energy Saver Settings</string>
+				<key>PayloadContent</key>
+				<array>
+					<dict>
+						<key>com.apple.screenSleep</key>
+						<string>never</string>
+						<key>com.apple.sleep</key>
+						<string>never</string>
+						<key>com.apple.autoLock</key>
+						<string>never</string>
+					</dict>
+				</array>
+			</dict>
+			<dict>
+				<key>PayloadType</key>
+				<string>com.apple.mobiledevice.passcode</string>
+				<key>PayloadIdentifier</key>
+				<string>com.example.mdm.profile.passcode</string>
+				<key>PayloadDisplayName</key>
+				<string>Passcode Settings</string>
+				<key>PayloadContent</key>
+				<array>
+					<dict>
+						<key>forcePin</key>
+						<false/>
+						<key>autoLock</key>
+						<string>never</string>
+					</dict>
+				</array>
+			</dict>
+		</array>
+		<key>PayloadUUID</key>
+		<string>6c6330d7-cf23-412d-8101-012e8d5161a4</string>
+		<key>PayloadIdentifier</key>
+		<string>com.ninjaone.custom.payload.6c6330d7-cf23-412d-8101-012e8d5161a4</string>
+		<key>PayloadDisplayName</key>
+		<string>Screenlock + Sleep Prevention</string>
+		<key>PayloadType</key>
+		<string>Configuration</string>
+		<key>PayloadVersion</key>
+		<integer>1</integer>
+	</dict>
+</plist>

@@ -1,5 +1,5 @@
 $daysBack = 7
-$eventID = 51
+$eventID = 7
 $logName = 'System'
 $providerName = 'disk'
 
